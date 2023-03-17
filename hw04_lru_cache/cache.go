@@ -31,8 +31,8 @@ func (l *lruCache) Set(key Key, value interface{}) bool {
 
 	item, has := l.items[key]
 	if has {
-		l.items[key].Value = itemCache{value: value, key: key}
-		l.queue.MoveToFront(l.items[key])
+		item.Value = itemCache{value: value, key: key}
+		l.queue.MoveToFront(item)
 		return true
 	}
 	if l.capacity == l.queue.Len() {
