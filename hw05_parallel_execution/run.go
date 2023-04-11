@@ -56,7 +56,6 @@ func worker(group *sync.WaitGroup, tasksCh chan Task, errCount *int32) {
 	for task := range tasksCh {
 		if task() != nil {
 			atomic.AddInt32(errCount, 1)
-
 		}
 	}
 }
