@@ -29,11 +29,10 @@ func execStage(stage Stage, in In, done In) Out {
 			case <-done:
 				return
 			case data, ok := <-in:
-				if ok {
-					out <- data
-				} else {
+				if !ok {
 					return
 				}
+				out <- data
 			}
 		}
 	}()
