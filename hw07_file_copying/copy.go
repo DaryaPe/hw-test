@@ -66,7 +66,7 @@ func execCopy(source, dest *os.File, offset, limit, size int64) error {
 	reader := bar.NewProxyReader(source)
 
 	_, err := io.CopyN(dest, reader, copySize)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 
