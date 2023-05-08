@@ -2,14 +2,91 @@ package main
 
 import (
 	"errors"
+	"io"
+	"os"
+	"time"
+
+	"github.com/cheggaaa/pb"
 )
 
 var (
-	ErrUnsupportedFile       = errors.New("unsupported file")
 	ErrOffsetExceedsFileSize = errors.New("offset exceeds file size")
+	ErrFromPathEmpty         = errors.New("from file path is empty")
+	ErrToPathEmpty           = errors.New("to file path is empty")
 )
 
 func Copy(fromPath, toPath string, offset, limit int64) error {
-	// Place your code here.
+	if err := validateFileParams(fromPath, toPath); err != nil {
+		return err
+	}
+
+	fromStat, err := os.Stat(fromPath)
+	if err != nil {
+		return err
+	}
+	fromFile, err := os.Open(fromPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = fromFile.Close()
+	}()
+
+	fromSize := fromStat.Size()
+	if err = validateOffset(fromSize, offset); err != nil {
+		return err
+	}
+
+	toFile, err := os.Create(toPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = toFile.Close()
+	}()
+
+	return execCopy(fromFile, toFile, offset, limit, fromSize)
+}
+
+func execCopy(source, dest *os.File, offset, limit, size int64) error {
+	var copySize int64
+	switch {
+	case limit == 0 || limit > size-offset:
+		copySize = size - offset
+	case limit <= size-offset:
+		copySize = limit
+	}
+
+	if _, err := source.Seek(offset, io.SeekStart); err != nil {
+		return err
+	}
+	bar := pb.New(int(copySize)).SetUnits(pb.U_BYTES).SetRefreshRate(time.Millisecond)
+	bar.ShowSpeed = true
+	bar.Start()
+	reader := bar.NewProxyReader(source)
+
+	_, err := io.CopyN(dest, reader, copySize)
+	if err != nil && err != io.EOF {
+		return err
+	}
+
+	bar.Finish()
+	return nil
+}
+
+func validateFileParams(fromPath, toPath string) error {
+	if len(fromPath) == 0 {
+		return ErrFromPathEmpty
+	}
+	if len(toPath) == 0 {
+		return ErrToPathEmpty
+	}
+	return nil
+}
+
+func validateOffset(fileSize, offset int64) error {
+	if offset > fileSize {
+		return ErrOffsetExceedsFileSize
+	}
 	return nil
 }
