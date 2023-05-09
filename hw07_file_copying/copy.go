@@ -13,6 +13,7 @@ var (
 	ErrOffsetExceedsFileSize = errors.New("offset exceeds file size")
 	ErrFromPathEmpty         = errors.New("from file path is empty")
 	ErrToPathEmpty           = errors.New("to file path is empty")
+	ErrFromAndToPathsEqual   = errors.New("from and to paths are equal")
 )
 
 func Copy(fromPath, toPath string, offset, limit int64) error {
@@ -63,6 +64,8 @@ func execCopy(source, dest *os.File, offset, limit, size int64) error {
 	bar := pb.New(int(copySize)).SetUnits(pb.U_BYTES).SetRefreshRate(time.Millisecond)
 	bar.ShowSpeed = true
 	bar.Start()
+	defer bar.Finish()
+
 	reader := bar.NewProxyReader(source)
 
 	_, err := io.CopyN(dest, reader, copySize)
@@ -70,7 +73,6 @@ func execCopy(source, dest *os.File, offset, limit, size int64) error {
 		return err
 	}
 
-	bar.Finish()
 	return nil
 }
 
@@ -80,6 +82,9 @@ func validateFileParams(fromPath, toPath string) error {
 	}
 	if len(toPath) == 0 {
 		return ErrToPathEmpty
+	}
+	if fromPath == toPath {
+		return ErrFromAndToPathsEqual
 	}
 	return nil
 }

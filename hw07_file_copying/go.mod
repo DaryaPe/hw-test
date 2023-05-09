@@ -1,4 +1,4 @@
-module github.com/DaryaPe/hw07_file_copying
+module github.com/DaryaPe/hw-test/hw07_file_copying
 
 go 1.19
 
