@@ -29,7 +29,7 @@ func TestCopy(t *testing.T) {
 		require.ErrorIs(t, err, os.ErrNotExist)
 	})
 	t.Run("from and to paths are equal", func(t *testing.T) {
-		err := Copy(fromFile, fromFile, 0, 0)
+		err := Copy(fromFile, "testdata/../testdata/input.txt", 0, 0)
 		require.ErrorIs(t, err, ErrFromAndToPathsEqual)
 	})
 	t.Run("ok", func(t *testing.T) {

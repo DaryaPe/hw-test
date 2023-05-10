@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/cheggaaa/pb"
@@ -17,7 +18,7 @@ var (
 )
 
 func Copy(fromPath, toPath string, offset, limit int64) error {
-	if err := validateFileParams(fromPath, toPath); err != nil {
+	if err := validateFilePaths(fromPath, toPath); err != nil {
 		return err
 	}
 
@@ -25,6 +26,11 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	if err != nil {
 		return err
 	}
+	fromSize := fromStat.Size()
+	if offset > fromSize {
+		return ErrOffsetExceedsFileSize
+	}
+
 	fromFile, err := os.Open(fromPath)
 	if err != nil {
 		return err
@@ -32,11 +38,6 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	defer func() {
 		_ = fromFile.Close()
 	}()
-
-	fromSize := fromStat.Size()
-	if err = validateOffset(fromSize, offset); err != nil {
-		return err
-	}
 
 	toFile, err := os.Create(toPath)
 	if err != nil {
@@ -58,40 +59,42 @@ func execCopy(source, dest *os.File, offset, limit, size int64) error {
 		copySize = limit
 	}
 
-	if _, err := source.Seek(offset, io.SeekStart); err != nil {
-		return err
-	}
 	bar := pb.New(int(copySize)).SetUnits(pb.U_BYTES).SetRefreshRate(time.Millisecond)
 	bar.ShowSpeed = true
 	bar.Start()
 	defer bar.Finish()
 
 	reader := bar.NewProxyReader(source)
-
+	if _, err := source.Seek(offset, io.SeekStart); err != nil {
+		return err
+	}
 	_, err := io.CopyN(dest, reader, copySize)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
-
 	return nil
 }
 
-func validateFileParams(fromPath, toPath string) error {
+func validateFilePaths(fromPath, toPath string) error {
 	if len(fromPath) == 0 {
 		return ErrFromPathEmpty
 	}
 	if len(toPath) == 0 {
 		return ErrToPathEmpty
 	}
-	if fromPath == toPath {
-		return ErrFromAndToPathsEqual
-	}
-	return nil
-}
 
-func validateOffset(fileSize, offset int64) error {
-	if offset > fileSize {
-		return ErrOffsetExceedsFileSize
+	fromAbs, err := filepath.Abs(fromPath)
+	if err != nil {
+		return err
+	}
+
+	toAbs, err := filepath.Abs(toPath)
+	if err != nil {
+		return err
+	}
+
+	if fromAbs == toAbs {
+		return ErrFromAndToPathsEqual
 	}
 	return nil
 }
