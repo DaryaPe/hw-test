@@ -16,7 +16,7 @@ func RunCmd(cmd []string, env Environment) (returnCode int) {
 
 	err := setEnvs(env)
 	if err != nil {
-		log.Printf("setEnvs error: %v\n", err)
+		log.Fatalf("setEnvs error: %v\n", err)
 	}
 
 	command := exec.Command(name, args...)
