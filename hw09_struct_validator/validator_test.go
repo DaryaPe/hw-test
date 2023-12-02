@@ -52,20 +52,20 @@ type (
 
 func TestValidate(t *testing.T) {
 	tests := []struct {
-		name           string
-		in             interface{}
-		expectedSErr   error
-		expectedVError error
+		name          string
+		in            interface{}
+		expSysErr     error
+		expValidError error
 	}{
 		{
-			name:         "nil input",
-			in:           nil,
-			expectedSErr: errSystem,
+			name:      "nil input",
+			in:        nil,
+			expSysErr: errSystem,
 		},
 		{
-			name:         "non struct input",
-			in:           42,
-			expectedSErr: errSystem,
+			name:      "input is not a struct",
+			in:        42,
+			expSysErr: errSystem,
 		},
 		{
 			name: "struct without tags",
@@ -74,20 +74,20 @@ func TestValidate(t *testing.T) {
 				Payload:   nil,
 				Signature: nil,
 			},
-			expectedSErr:   nil,
-			expectedVError: nil,
+			expSysErr:     nil,
+			expValidError: nil,
 		},
 		{
-			name: "good system error",
+			name: "system error",
 			in: BadTagValue{
 				UndefinedTags:  "test",
 				BadStringsTags: "test",
 				BadIntTags:     1234,
 			},
-			expectedSErr: errSystem,
+			expSysErr: errSystem,
 		},
 		{
-			name: "good check user",
+			name: "check user - ok",
 			in: User{
 				ID:     "123456789012345678901234567890123456",
 				Name:   "any name",
@@ -97,11 +97,11 @@ func TestValidate(t *testing.T) {
 				Phones: []string{"89181113322"},
 				meta:   []byte("any date"),
 			},
-			expectedSErr:   nil,
-			expectedVError: nil,
+			expSysErr:     nil,
+			expValidError: nil,
 		},
 		{
-			name: "good check nested",
+			name: "check nested struct - ok",
 			in: NestedTable{
 				Name: "test",
 				ResponseLine: Response{
@@ -115,11 +115,11 @@ func TestValidate(t *testing.T) {
 					{Code: -1},
 				},
 			},
-			expectedSErr:   nil,
-			expectedVError: nil,
+			expSysErr:     nil,
+			expValidError: nil,
 		},
 		{
-			name: "good validation user",
+			name: "validation err in user",
 			in: User{
 				ID:     "1234",
 				Name:   "any name",
@@ -129,41 +129,60 @@ func TestValidate(t *testing.T) {
 				Phones: []string{"000"},
 				meta:   []byte("any date"),
 			},
-			expectedSErr:   nil,
-			expectedVError: errValidation,
+			expSysErr:     nil,
+			expValidError: errValidation,
 		},
 		{
-			name: "good validation app",
+			name: "validation err in app",
 			in: App{
 				Version: "123467",
 			},
-			expectedSErr:   nil,
-			expectedVError: errValidation,
+			expSysErr:     nil,
+			expValidError: errValidation,
+		},
+		{
+			name: "validation err in nested struct",
+			in: NestedTable{
+				Name: "test",
+				ResponseLine: Response{
+					Code: 999,
+				},
+				ResponseArray: []Response{
+					{Code: 404},
+					{Code: 500},
+				},
+				ResponseArrayWOValidate: []Response{
+					{Code: -1},
+				},
+			},
+			expSysErr:     nil,
+			expValidError: errValidation,
 		},
 	}
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("case %d: %v", i, tt.name), func(t *testing.T) {
 			tt := tt
+			t.Parallel()
 			err := Validate(tt.in)
 			fmt.Printf("%v\n", err)
-			if tt.expectedSErr != nil {
+			if tt.expSysErr != nil {
 				if err == nil {
 					t.Errorf("expected system error but expected nil")
 					return
 				}
-				if !(errors.Is(err, tt.expectedSErr)) {
-					t.Errorf("error '%v' but expected '%v'", err, tt.expectedSErr)
+				if !(errors.Is(err, tt.expSysErr)) {
+					t.Errorf("error '%v' but expected '%v'", err, tt.expSysErr)
 				}
 				return
 			}
-			if tt.expectedVError != nil {
+			if tt.expValidError != nil {
 				if err == nil {
 					t.Errorf("expected validation errors but expected nil")
 					return
 				}
-				if !errors.Is(err, tt.expectedVError) {
-					t.Errorf("expected validation error %v but got %v", tt.expectedVError, err)
+				if !errors.Is(err, tt.expValidError) {
+					t.Errorf("expected validation error %v but got %v", tt.expValidError, err)
 				}
 				return
 			}

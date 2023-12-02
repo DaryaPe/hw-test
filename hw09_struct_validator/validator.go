@@ -32,11 +32,11 @@ var (
 	msgIncorrectTag   = "%w: incorrect value type for tag '%v' value '%v'"
 	msgUnexpectedType = "%w: unexpected type for validation '%v' function"
 
-	msgWrongLen    = "wrong length: must be '%d' not a '%d'"
-	msgWrongRegexp = "wrong regexp: value does not math pattern '%v'"
-	msgErrMin      = "value is less than the limit, must be greater than '%d'"
-	msgErrMax      = "value is greater than the limit, must be less than '%d'"
-	msgWrongIn     = "wrong in: value '%v' does not math any values from list '%v'"
+	msgWrongLen    = "the length of the value must be '%d' not a '%d'"
+	msgWrongRegexp = "value does not math pattern '%v'"
+	msgLessMin     = "value '%d' is less than the limit, must be greater than '%d'"
+	msgGreaterMax  = "value '%d' is greater than the limit, must be less than '%d'"
+	msgWrongIn     = "value '%v' does not math any values from list '%v'"
 
 	errInternal   = fmt.Errorf("internal error")
 	errSystem     = fmt.Errorf("system error")
@@ -66,7 +66,7 @@ type Validator struct {
 
 // Struct валидирует переданную структуру.
 func (v *Validator) Struct(i interface{}) error {
-	if v == nil {
+	if i == nil {
 		return fmt.Errorf(msgExpectedStruct, "nil")
 	}
 
@@ -259,7 +259,7 @@ func validateMin(value reflect.Value, check string) error {
 			return fmt.Errorf(msgIncorrectTag, errInternal, checkMin, check)
 		}
 		if int(value.Int()) < min {
-			return fmt.Errorf(msgErrMin, min)
+			return fmt.Errorf(msgLessMin, int(value.Int()), min)
 		}
 	default:
 		return fmt.Errorf(msgUnexpectedType, errInternal, checkMin)
@@ -277,7 +277,7 @@ func validateMax(value reflect.Value, check string) error {
 			return fmt.Errorf(msgIncorrectTag, errInternal, checkMax, check)
 		}
 		if int(value.Int()) > max {
-			return fmt.Errorf(msgErrMax, max)
+			return fmt.Errorf(msgGreaterMax, int(value.Int()), max)
 		}
 	default:
 		return fmt.Errorf(msgUnexpectedType, errInternal, checkMax)
