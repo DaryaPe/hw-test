@@ -18,11 +18,11 @@ const (
 )
 
 const (
-	taskLen    = "len"
-	taskRegexp = "regexp"
-	taskIn     = "in"
-	taskMin    = "min"
-	taskMax    = "max"
+	checkLen    = "len"
+	checkRegexp = "regexp"
+	checkIn     = "in"
+	checkMin    = "min"
+	checkMax    = "max"
 )
 
 var (
@@ -59,13 +59,78 @@ func (v ValidationErrors) Error() string {
 	return result
 }
 
-// Validator объект, валидирующий структуру.
+// Validator объект для валидации структуры.
 type Validator struct {
 	validationErrs ValidationErrors // Ошибки валидации
 }
 
-// Field валидирует атомарное поле.
-func (v *Validator) Field(name string, value reflect.Value, tags string) error {
+// Struct валидирует переданную структуру.
+func (v *Validator) Struct(i interface{}) error {
+	if v == nil {
+		return fmt.Errorf(msgExpectedStruct, "nil")
+	}
+
+	value := reflect.ValueOf(i)
+	if value.Kind() != reflect.Struct {
+		return fmt.Errorf(msgExpectedStruct, value.Kind())
+	}
+	return v.validateStruct(value, value.Type())
+}
+
+// validateStruct валидирует структуру.
+func (v *Validator) validateStruct(value reflect.Value, valueType reflect.Type) error {
+	for i := 0; i < value.NumField(); i++ {
+		field := value.Field(i)
+		fieldStruct := valueType.Field(i)
+
+		tags, ok := fieldStruct.Tag.Lookup(validateTag)
+		if !ok {
+			continue
+		}
+
+		if err := v.Field(fieldStruct.Name, field, tags); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Field валидирует переданное поле.
+func (v *Validator) Field(name string, field reflect.Value, tags string) error {
+	var err error
+
+	switch {
+	case field.Kind() == reflect.Struct && isNested(tags):
+		if err = v.validateStruct(field, field.Type()); err != nil {
+			return err
+		}
+	case field.Kind() == reflect.Slice && isNested(tags):
+		for j := 0; j < field.Len(); j++ {
+			if err = v.validateStruct(field.Index(j), field.Index(j).Type()); err != nil {
+				return err
+			}
+		}
+	case field.Kind() != reflect.Struct && field.Kind() != reflect.Slice:
+		if err = v.validateField(name, field, tags); err != nil {
+			return err
+		}
+	case field.Kind() != reflect.Struct && field.Kind() == reflect.Slice:
+		for j := 0; j < field.Len(); j++ {
+			if err = v.validateField(name, field.Index(j), tags); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// isNested возвращает признак, что вложенная структура требует валидации.
+func isNested(tags string) bool {
+	return tags == nestedTag
+}
+
+// validateField валидирует атомарное поле.
+func (v *Validator) validateField(name string, value reflect.Value, tags string) error {
 	checks := strings.Split(tags, validateTagDelim)
 	for _, check := range checks {
 		var err error
@@ -76,15 +141,15 @@ func (v *Validator) Field(name string, value reflect.Value, tags string) error {
 
 		nameCheck, valueCheck := metadata[0], metadata[1]
 		switch nameCheck {
-		case taskLen:
+		case checkLen:
 			err = validateEqualLen(value, valueCheck)
-		case taskRegexp:
+		case checkRegexp:
 			err = validateRegexp(value, valueCheck)
-		case taskIn:
+		case checkIn:
 			err = validateIn(value, valueCheck)
-		case taskMin:
+		case checkMin:
 			err = validateMin(value, valueCheck)
-		case taskMax:
+		case checkMax:
 			err = validateMax(value, valueCheck)
 		default:
 			err = fmt.Errorf(msgUndefinedTag, errInternal, metadata[0])
@@ -102,63 +167,6 @@ func (v *Validator) Field(name string, value reflect.Value, tags string) error {
 	return nil
 }
 
-// validateStruct валидирует структуру.
-func (v *Validator) validateStruct(value reflect.Value, valueType reflect.Type) error {
-	for i := 0; i < valueType.NumField(); i++ {
-		field := value.Field(i)
-		fieldType := valueType.Field(i)
-
-		tags, ok := fieldType.Tag.Lookup(validateTag)
-		if !ok {
-			continue
-		}
-
-		fieldName := valueType.Field(i).Name
-		var err error
-
-		switch {
-		case field.Kind() == reflect.Struct && isNested(tags):
-			err = v.validateStruct(field, field.Type())
-			if err != nil {
-				return err
-			}
-		case field.Kind() == reflect.Slice && isNested(tags):
-			for j := 0; j < field.Len(); j++ {
-				err = v.validateStruct(field.Index(j), field.Index(j).Type())
-				if err != nil {
-					return err
-				}
-			}
-		case field.Kind() != reflect.Struct && field.Kind() != reflect.Slice:
-			err = v.Field(fieldName, field, tags)
-			if err != nil {
-				return err
-			}
-		case field.Kind() != reflect.Struct && field.Kind() == reflect.Slice:
-			for j := 0; j < field.Len(); j++ {
-				err = v.Field(fieldName, field.Index(j), tags)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-// Struct валидирует переданную структуру.
-func (v *Validator) Struct(i interface{}) error {
-	if v == nil {
-		return fmt.Errorf(msgExpectedStruct, "nil")
-	}
-
-	value := reflect.ValueOf(i)
-	if value.Kind() != reflect.Struct {
-		return fmt.Errorf(msgExpectedStruct, value.Kind())
-	}
-	return v.validateStruct(value, value.Type())
-}
-
 // Errors возвращает ошибки, обнаруженные в ходе валидации.
 func (v *Validator) Errors() error {
 	if len(v.validationErrs) > 0 {
@@ -173,13 +181,13 @@ func validateEqualLen(value reflect.Value, check string) error {
 	case reflect.String:
 		long, err := strconv.Atoi(check)
 		if err != nil {
-			return fmt.Errorf(msgIncorrectTag, errInternal, taskLen, value)
+			return fmt.Errorf(msgIncorrectTag, errInternal, checkLen, value)
 		}
 		if value.Len() != long {
 			return fmt.Errorf(msgWrongLen, long, value.Len())
 		}
 	default:
-		return fmt.Errorf(msgUnexpectedType, errInternal, taskLen)
+		return fmt.Errorf(msgUnexpectedType, errInternal, checkLen)
 	}
 
 	return nil
@@ -191,13 +199,13 @@ func validateRegexp(value reflect.Value, check string) error {
 	case reflect.String:
 		exp, err := regexp.Compile(check)
 		if err != nil {
-			return fmt.Errorf(msgIncorrectTag, errInternal, taskRegexp, check)
+			return fmt.Errorf(msgIncorrectTag, errInternal, checkRegexp, check)
 		}
 		if !exp.MatchString(value.String()) {
 			return fmt.Errorf(msgWrongRegexp, check)
 		}
 	default:
-		return fmt.Errorf(msgUnexpectedType, errInternal, taskRegexp)
+		return fmt.Errorf(msgUnexpectedType, errInternal, checkRegexp)
 	}
 
 	return nil
@@ -207,7 +215,7 @@ func validateRegexp(value reflect.Value, check string) error {
 func validateIn(value reflect.Value, check string) error {
 	values := strings.Split(check, validateListDelim)
 	if len(values) == 0 {
-		return fmt.Errorf(msgIncorrectTag, errInternal, taskIn, check)
+		return fmt.Errorf(msgIncorrectTag, errInternal, checkIn, check)
 	}
 	equal := false
 	switch value.Kind() { //nolint:exhaustive
@@ -225,7 +233,7 @@ func validateIn(value reflect.Value, check string) error {
 		for idx := range values {
 			valueInt, err := strconv.Atoi(values[idx])
 			if err != nil {
-				return fmt.Errorf(msgIncorrectTag, errInternal, taskIn, check)
+				return fmt.Errorf(msgIncorrectTag, errInternal, checkIn, check)
 			}
 			if int(value.Int()) == valueInt {
 				equal = true
@@ -236,7 +244,7 @@ func validateIn(value reflect.Value, check string) error {
 			return fmt.Errorf(msgWrongIn, value.Int(), check)
 		}
 	default:
-		return fmt.Errorf(msgUnexpectedType, errInternal, taskIn)
+		return fmt.Errorf(msgUnexpectedType, errInternal, checkIn)
 	}
 
 	return nil
@@ -248,13 +256,13 @@ func validateMin(value reflect.Value, check string) error {
 	case reflect.Int:
 		min, err := strconv.Atoi(check)
 		if err != nil {
-			return fmt.Errorf(msgIncorrectTag, errInternal, taskMin, check)
+			return fmt.Errorf(msgIncorrectTag, errInternal, checkMin, check)
 		}
 		if int(value.Int()) < min {
 			return fmt.Errorf(msgErrMin, min)
 		}
 	default:
-		return fmt.Errorf(msgUnexpectedType, errInternal, taskMin)
+		return fmt.Errorf(msgUnexpectedType, errInternal, checkMin)
 	}
 
 	return nil
@@ -266,21 +274,16 @@ func validateMax(value reflect.Value, check string) error {
 	case reflect.Int:
 		max, err := strconv.Atoi(check)
 		if err != nil {
-			return fmt.Errorf(msgIncorrectTag, errInternal, taskMax, check)
+			return fmt.Errorf(msgIncorrectTag, errInternal, checkMax, check)
 		}
 		if int(value.Int()) > max {
 			return fmt.Errorf(msgErrMax, max)
 		}
 	default:
-		return fmt.Errorf(msgUnexpectedType, errInternal, taskMax)
+		return fmt.Errorf(msgUnexpectedType, errInternal, checkMax)
 	}
 
 	return nil
-}
-
-// isNested возвращает признак, что вложенная структура требует валидации.
-func isNested(tags string) bool {
-	return tags == nestedTag
 }
 
 // Validate валидирует публичные поля входной структуры.
