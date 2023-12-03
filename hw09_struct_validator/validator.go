@@ -25,22 +25,17 @@ const (
 	checkMax    = "max"
 )
 
-var (
+const (
 	msgExpectedStruct = "expected struct but returned %s value"
-	msgExpectedValue  = "%w: tag '%v' have not value"
-	msgUndefinedTag   = "%w: tag '%v' is undefined"
 	msgIncorrectTag   = "%w: incorrect value type for tag '%v' value '%v'"
 	msgUnexpectedType = "%w: unexpected type for validation '%v' function"
+	msgWrongIn        = "value '%v' does not math any values from list '%v'"
+)
 
-	msgWrongLen    = "the length of the value must be '%d' not a '%d'"
-	msgWrongRegexp = "value does not math pattern '%v'"
-	msgLessMin     = "value '%d' is less than the limit, must be greater than '%d'"
-	msgGreaterMax  = "value '%d' is greater than the limit, must be less than '%d'"
-	msgWrongIn     = "value '%v' does not math any values from list '%v'"
-
-	errInternal   = fmt.Errorf("internal error")
-	errSystem     = fmt.Errorf("system error")
-	errValidation = fmt.Errorf("validation error")
+var (
+	errInternal   = errors.New("internal error")
+	errSystem     = errors.New("system error")
+	errValidation = errors.New("validation error")
 )
 
 // ValidationError ошибки валидации.
@@ -52,11 +47,11 @@ type ValidationError struct {
 type ValidationErrors []ValidationError
 
 func (v ValidationErrors) Error() string {
-	var result string
+	var result strings.Builder
 	for i := range v {
-		result += fmt.Sprintf("%v: %v\n", v[i].Field, v[i].Err)
+		result.WriteString(fmt.Sprintf("%v: %v\n", v[i].Field, v[i].Err))
 	}
-	return result
+	return result.String()
 }
 
 // Validator объект для валидации структуры.
@@ -82,6 +77,9 @@ func (v *Validator) validateStruct(value reflect.Value, valueType reflect.Type) 
 	for i := 0; i < value.NumField(); i++ {
 		field := value.Field(i)
 		fieldStruct := valueType.Field(i)
+		if fieldStruct.Anonymous {
+			continue
+		}
 
 		tags, ok := fieldStruct.Tag.Lookup(validateTag)
 		if !ok {
@@ -101,27 +99,23 @@ func (v *Validator) Field(name string, field reflect.Value, tags string) error {
 
 	switch {
 	case field.Kind() == reflect.Struct && isNested(tags):
-		if err = v.validateStruct(field, field.Type()); err != nil {
-			return err
-		}
+		err = v.validateStruct(field, field.Type())
 	case field.Kind() == reflect.Slice && isNested(tags):
 		for j := 0; j < field.Len(); j++ {
 			if err = v.validateStruct(field.Index(j), field.Index(j).Type()); err != nil {
-				return err
+				break
 			}
 		}
 	case field.Kind() != reflect.Struct && field.Kind() != reflect.Slice:
-		if err = v.validateField(name, field, tags); err != nil {
-			return err
-		}
+		err = v.validateField(name, field, tags)
 	case field.Kind() != reflect.Struct && field.Kind() == reflect.Slice:
 		for j := 0; j < field.Len(); j++ {
 			if err = v.validateField(name, field.Index(j), tags); err != nil {
-				return err
+				break
 			}
 		}
 	}
-	return nil
+	return err
 }
 
 // isNested возвращает признак, что вложенная структура требует валидации.
@@ -136,7 +130,7 @@ func (v *Validator) validateField(name string, value reflect.Value, tags string)
 		var err error
 		metadata := strings.Split(check, validateCheckDelim)
 		if len(metadata) != 2 {
-			return fmt.Errorf(msgExpectedValue, errInternal, metadata[0])
+			return fmt.Errorf("%w: tag '%v' have not value", errInternal, metadata[0])
 		}
 
 		nameCheck, valueCheck := metadata[0], metadata[1]
@@ -152,7 +146,7 @@ func (v *Validator) validateField(name string, value reflect.Value, tags string)
 		case checkMax:
 			err = validateMax(value, valueCheck)
 		default:
-			err = fmt.Errorf(msgUndefinedTag, errInternal, metadata[0])
+			err = fmt.Errorf("%w: tag '%v' is undefined", errInternal, metadata[0])
 		}
 		if err != nil && errors.Is(err, errInternal) {
 			return err
@@ -168,26 +162,21 @@ func (v *Validator) validateField(name string, value reflect.Value, tags string)
 }
 
 // Errors возвращает ошибки, обнаруженные в ходе валидации.
-func (v *Validator) Errors() error {
-	if len(v.validationErrs) > 0 {
-		return fmt.Errorf("%w:\n%v", errValidation, v.validationErrs.Error())
-	}
-	return nil
+func (v *Validator) Errors() ValidationErrors {
+	return v.validationErrs
 }
 
 // validateEqualLen проверяет равенство длины.
 func validateEqualLen(value reflect.Value, check string) error {
-	switch value.Kind() { //nolint:exhaustive
-	case reflect.String:
-		long, err := strconv.Atoi(check)
-		if err != nil {
-			return fmt.Errorf(msgIncorrectTag, errInternal, checkLen, value)
-		}
-		if value.Len() != long {
-			return fmt.Errorf(msgWrongLen, long, value.Len())
-		}
-	default:
+	if value.Kind() != reflect.String {
 		return fmt.Errorf(msgUnexpectedType, errInternal, checkLen)
+	}
+	long, err := strconv.Atoi(check)
+	if err != nil {
+		return fmt.Errorf(msgIncorrectTag, errInternal, checkLen, value)
+	}
+	if value.Len() != long {
+		return fmt.Errorf("the length of the value must be '%d' not a '%d'", long, value.Len())
 	}
 
 	return nil
@@ -195,19 +184,17 @@ func validateEqualLen(value reflect.Value, check string) error {
 
 // validateRegexp проверяет на соответствие регулярному выражению.
 func validateRegexp(value reflect.Value, check string) error {
-	switch value.Kind() { //nolint:exhaustive
-	case reflect.String:
-		exp, err := regexp.Compile(check)
-		if err != nil {
-			return fmt.Errorf(msgIncorrectTag, errInternal, checkRegexp, check)
-		}
-		if !exp.MatchString(value.String()) {
-			return fmt.Errorf(msgWrongRegexp, check)
-		}
-	default:
+	if value.Kind() != reflect.String {
 		return fmt.Errorf(msgUnexpectedType, errInternal, checkRegexp)
 	}
 
+	exp, err := regexp.Compile(check)
+	if err != nil {
+		return fmt.Errorf(msgIncorrectTag, errInternal, checkRegexp, check)
+	}
+	if !exp.MatchString(value.String()) {
+		return fmt.Errorf("value does not math pattern '%v'", check)
+	}
 	return nil
 }
 
@@ -252,35 +239,30 @@ func validateIn(value reflect.Value, check string) error {
 
 // validateMin проверяет на соответствие минимальному значению границы.
 func validateMin(value reflect.Value, check string) error {
-	switch value.Kind() { //nolint:exhaustive
-	case reflect.Int:
-		min, err := strconv.Atoi(check)
-		if err != nil {
-			return fmt.Errorf(msgIncorrectTag, errInternal, checkMin, check)
-		}
-		if int(value.Int()) < min {
-			return fmt.Errorf(msgLessMin, int(value.Int()), min)
-		}
-	default:
+	if value.Kind() != reflect.Int {
 		return fmt.Errorf(msgUnexpectedType, errInternal, checkMin)
 	}
-
+	min, err := strconv.Atoi(check)
+	if err != nil {
+		return fmt.Errorf(msgIncorrectTag, errInternal, checkMin, check)
+	}
+	if int(value.Int()) < min {
+		return fmt.Errorf("value '%d' is less than the limit, must be greater than '%d'", int(value.Int()), min)
+	}
 	return nil
 }
 
 // validateMax проверяет на соответствие максимальному значению.
 func validateMax(value reflect.Value, check string) error {
-	switch value.Kind() { //nolint:exhaustive
-	case reflect.Int:
-		max, err := strconv.Atoi(check)
-		if err != nil {
-			return fmt.Errorf(msgIncorrectTag, errInternal, checkMax, check)
-		}
-		if int(value.Int()) > max {
-			return fmt.Errorf(msgGreaterMax, int(value.Int()), max)
-		}
-	default:
+	if value.Kind() != reflect.Int {
 		return fmt.Errorf(msgUnexpectedType, errInternal, checkMax)
+	}
+	max, err := strconv.Atoi(check)
+	if err != nil {
+		return fmt.Errorf(msgIncorrectTag, errInternal, checkMax, check)
+	}
+	if int(value.Int()) > max {
+		return fmt.Errorf("value '%d' is greater than the limit, must be less than '%d'", int(value.Int()), max)
 	}
 
 	return nil
@@ -293,5 +275,15 @@ func Validate(v interface{}) error {
 	if err != nil {
 		return fmt.Errorf("%w:\n%v", errSystem, err.Error())
 	}
-	return validator.Errors()
+	validationErrs := validator.Errors()
+
+	if len(validationErrs) == 0 {
+		return nil
+	}
+
+	var result strings.Builder
+	for i := range validationErrs {
+		result.WriteString(fmt.Sprintf("%v: %v\n", validationErrs[i].Field, validationErrs[i].Err))
+	}
+	return fmt.Errorf("%w:\n%v", errValidation, result.String())
 }
