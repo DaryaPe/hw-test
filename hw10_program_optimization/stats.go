@@ -10,7 +10,7 @@ type User struct {
 	ID       int    `json:"-"`
 	Name     string `json:"-"`
 	Username string `json:"-"`
-	Email    string `json:"Email"`
+	Email    string
 	Phone    string `json:"-"`
 	Password string `json:"-"`
 	Address  string `json:"-"`
