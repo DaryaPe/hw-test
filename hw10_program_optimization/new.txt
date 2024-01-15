@@ -1,0 +1,6 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/DaryaPe/hw-test/hw10_program_optimization
+BenchmarkGetDomainStat-8   	       9	 116347083 ns/op	 3335820 B/op	  123373 allocs/op
+PASS
+ok  	github.com/DaryaPe/hw-test/hw10_program_optimization	2.619s
