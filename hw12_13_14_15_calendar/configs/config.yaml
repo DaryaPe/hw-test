@@ -1,0 +1,19 @@
+# Конфигурация логгера
+logger:
+  path: "log/logs.log"
+  level: "debug"
+
+# Конфигурация сервера
+server:
+  host: "localhost"
+  port: 8080
+
+# Данные базы данных
+database:
+  source: "postgres"
+  user: "postgres"
+  pass: "password"
+  host: "localhost"
+  port: 5432
+  database: "postgres"
+  timeout: "60s"

@@ -8,7 +8,7 @@ build:
 	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/calendar
 
 run: build
-	$(BIN) -config ./configs/config.toml
+	$(BIN) -config ./configs/config.yaml
 
 build-img:
 	docker build \
@@ -30,5 +30,17 @@ install-lint-deps:
 
 lint: install-lint-deps
 	golangci-lint run ./...
+
+goose-get:
+	go install github.com/pressly/goose/v3/cmd/goose@latest
+
+goose-up:
+	goose -dir="migrations" postgres "host=localhost port=5432 user=postgres password=password dbname=postgres sslmode=disable" up
+
+goose-down:
+	goose -dir="migrations" postgres "host=localhost port=5432 user=postgres password=password dbname=postgres sslmode=disable" down
+
+goose-version:
+	goose -dir="migrations" postgres "host=localhost port=5432 user=postgres password=password dbname=postgres sslmode=disable" version
 
 .PHONY: build run build-img run-img version test lint
