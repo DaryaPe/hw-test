@@ -10,11 +10,11 @@ import (
 )
 
 func TestStorage(t *testing.T) { //nolint: gocognit
-	log := &logmock.MockLogger{}
+	log := &logmock.Logger{}
 	ctx := context.Background()
 	storage := New(log)
 
-	startDate := time.Date(2024, 02, 03, 20, 30, 50, 0, time.UTC)
+	startDate := time.Date(2024, 0o2, 0o3, 20, 30, 50, 0, time.UTC)
 	endDate := startDate.Add(time.Hour * 1)
 
 	t.Run("create", func(t *testing.T) {
@@ -42,13 +42,20 @@ func TestStorage(t *testing.T) { //nolint: gocognit
 			domain.TakeWeekPeriodNotification,
 			domain.TakeMonthPeriodNotification,
 		}
-		filters := []domain.Event{{StartDate: time.Time{}, EndDate: time.Time{}},
-			{StartDate: time.Date(2024, 02, 03, 00, 00, 00, 0, time.UTC),
-				EndDate: time.Date(2024, 02, 03, 23, 59, 59, 0, time.UTC)},
-			{StartDate: time.Date(2024, 01, 29, 00, 00, 00, 0, time.UTC),
-				EndDate: time.Date(2024, 02, 04, 23, 59, 59, 0, time.UTC)},
-			{StartDate: time.Date(2024, 02, 01, 00, 00, 00, 0, time.UTC),
-				EndDate: time.Date(2024, 02, 29, 23, 59, 59, 0, time.UTC)},
+		filters := []domain.Event{
+			{StartDate: time.Time{}, EndDate: time.Time{}},
+			{
+				StartDate: time.Date(2024, 0o2, 0o3, 0o0, 0o0, 0o0, 0, time.UTC),
+				EndDate:   time.Date(2024, 0o2, 0o3, 23, 59, 59, 0, time.UTC),
+			},
+			{
+				StartDate: time.Date(2024, 0o1, 29, 0o0, 0o0, 0o0, 0, time.UTC),
+				EndDate:   time.Date(2024, 0o2, 0o4, 23, 59, 59, 0, time.UTC),
+			},
+			{
+				StartDate: time.Date(2024, 0o2, 0o1, 0o0, 0o0, 0o0, 0, time.UTC),
+				EndDate:   time.Date(2024, 0o2, 29, 23, 59, 59, 0, time.UTC),
+			},
 		}
 		for i := range conditions {
 			events, err := storage.Find(ctx, conditions[i], filters[i])

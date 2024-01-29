@@ -8,7 +8,7 @@ import (
 	"github.com/DaryaPe/hw-test/hw12_13_14_15_calendar/common"
 	"github.com/DaryaPe/hw-test/hw12_13_14_15_calendar/internal/config"
 	"github.com/DaryaPe/hw-test/hw12_13_14_15_calendar/pkg/errors"
-	"github.com/jmoiron/sqlx" //nolint:gci
+	"github.com/jmoiron/sqlx"
 )
 
 const (
@@ -87,6 +87,6 @@ func (p *DB) Rebind(query string) string {
 	return p.conn.Rebind(query)
 }
 
-func (p DB) log(ctx context.Context, action, sql string, args ...interface{}) {
+func (p *DB) log(ctx context.Context, action, sql string, args ...interface{}) {
 	p.logger.Debugw(action, common.CtxActionID, ctx.Value(common.CtxActionID), ctxSQL, sql, ctxArgs, args)
 }

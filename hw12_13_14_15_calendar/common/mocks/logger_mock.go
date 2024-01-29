@@ -1,32 +1,31 @@
 package mocks
 
-// MockLogger объект логгера, который необходим для моков в тестах.
-type MockLogger struct{}
+type Logger struct{}
 
-func (m MockLogger) Debug(args ...interface{}) {}
+func (m Logger) Debug(_ ...interface{}) {}
 
-func (m MockLogger) Info(args ...interface{}) {}
+func (m Logger) Info(_ ...interface{}) {}
 
-func (m MockLogger) Warn(args ...interface{}) {}
+func (m Logger) Warn(_ ...interface{}) {}
 
-func (m MockLogger) Error(args ...interface{}) {}
+func (m Logger) Error(_ ...interface{}) {}
 
-func (m MockLogger) Debugf(template string, args ...interface{}) {}
+func (m Logger) Debugf(_ string, _ ...interface{}) {}
 
-func (m MockLogger) Infof(template string, args ...interface{}) {}
+func (m Logger) Infof(_ string, _ ...interface{}) {}
 
-func (m MockLogger) Warnf(template string, args ...interface{}) {}
+func (m Logger) Warnf(_ string, _ ...interface{}) {}
 
-func (m MockLogger) Errorf(template string, args ...interface{}) {}
+func (m Logger) Errorf(_ string, _ ...interface{}) {}
 
-func (m MockLogger) Debugw(msg string, keysAndValues ...interface{}) {}
+func (m Logger) Debugw(_ string, _ ...interface{}) {}
 
-func (m MockLogger) Infow(msg string, keysAndValues ...interface{}) {}
+func (m Logger) Infow(_ string, _ ...interface{}) {}
 
-func (m MockLogger) Warnw(msg string, keysAndValues ...interface{}) {}
+func (m Logger) Warnw(_ string, _ ...interface{}) {}
 
-func (m MockLogger) Errorw(msg string, keysAndValues ...interface{}) {}
+func (m Logger) Errorw(_ string, _ ...interface{}) {}
 
-func (m MockLogger) Print(args ...interface{}) {}
+func (m Logger) Print(_ ...interface{}) {}
 
-func (m MockLogger) Printf(format string, args ...interface{}) {}
+func (m Logger) Printf(_ string, _ ...interface{}) {}

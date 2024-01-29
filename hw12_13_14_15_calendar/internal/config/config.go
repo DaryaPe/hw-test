@@ -45,7 +45,7 @@ func (c *Config) Apply(path string) error {
 		return errors.Wrap(err, "os.Open")
 	}
 	defer f.Close()
-	decoder := yaml.NewDecoder(f) // nolint
+	decoder := yaml.NewDecoder(f)
 	if err = decoder.Decode(c); err != nil {
 		return errors.Wrap(err, "decoder.Decode")
 	}

@@ -4,15 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/DaryaPe/hw-test/hw12_13_14_15_calendar/common"
 	"github.com/DaryaPe/hw-test/hw12_13_14_15_calendar/domain"
 	"github.com/DaryaPe/hw-test/hw12_13_14_15_calendar/internal/pkg/util"
 	"github.com/DaryaPe/hw-test/hw12_13_14_15_calendar/pkg/errors"
 )
 
 type Inter struct {
-	logger common.Logger
-	db     Storage
+	db Storage
 }
 
 type Storage interface {

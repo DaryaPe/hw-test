@@ -91,7 +91,8 @@ func (s *Storage) Delete(ctx context.Context, id string) error {
 
 func (s *Storage) Find(ctx context.Context, _ int, filter domain.Event) ([]domain.Event, error) {
 	var query strings.Builder
-	query.WriteString(`SELECT id, user_id, title, start_date, end_date, notification, description FROM calendar.event where 1=1`)
+	query.WriteString(
+		`SELECT id, user_id, title, start_date, end_date, notification, description FROM calendar.event where 1=1`)
 
 	var args []interface{}
 
