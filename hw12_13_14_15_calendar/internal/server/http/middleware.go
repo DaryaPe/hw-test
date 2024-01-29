@@ -32,8 +32,8 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		if err != nil {
 			panic(err)
 		}
-		ctx := context.WithValue(context.Background(), common.CtxActionID, actionID) // nolint:staticcheck
-		ctx = context.WithValue(ctx, common.CtxLatency, time.Now().Unix())           // nolint:staticcheck
+		ctx := context.WithValue(context.Background(), common.CtxActionID, actionID) //nolint:staticcheck
+		ctx = context.WithValue(ctx, common.CtxLatency, time.Now().Unix())           //nolint:staticcheck
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	})
